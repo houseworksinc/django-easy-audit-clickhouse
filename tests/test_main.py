@@ -1,17 +1,12 @@
 import json
-import logging
 
 import pytest
-from asgiref.sync import sync_to_async
-from django.contrib.contenttypes.models import ContentType
 from django.core import management
 from django.db import transaction
 from django.urls import reverse
-from django.utils.version import get_version
-from pytest_django.asserts import assertInHTML
 
 from easyaudit.middleware.easyaudit import clear_request, set_current_user
-from easyaudit.models import CRUDEvent, RequestEvent
+from easyaudit.models import CRUDEvent
 from tests.test_app.models import (
     BigIntForeignKeyModel,
     BigIntM2MModel,
@@ -85,7 +80,7 @@ class TestAuditModels:
     def test_create_model(self, model):
         obj = model.objects.create()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         assert crud_event_qs.count() == 1
 
@@ -99,7 +94,7 @@ class TestAuditModels:
         obj_fk.save()
 
         crud_event = CRUDEvent.objects.filter(
-            object_id=obj_fk.id, content_type=ContentType.objects.get_for_model(obj_fk)
+            object_id=obj_fk.id,
         ).first()
         data = json.loads(crud_event.object_json_repr)[0]
         assert str(data["fields"]["test_fk"]) == str(obj.id)
@@ -112,7 +107,6 @@ class TestAuditModels:
 
         crud_event = CRUDEvent.objects.filter(
             object_id=obj_m2m.id,
-            content_type=ContentType.objects.get_for_model(obj_m2m),
         ).first()
         data = json.loads(crud_event.object_json_repr)[0]
         assert [str(d) for d in data["fields"]["test_m2m"]] == [str(obj.id)]
@@ -126,7 +120,6 @@ class TestAuditModels:
 
         crud_event = CRUDEvent.objects.filter(
             object_id=obj_m2m.id,
-            content_type=ContentType.objects.get_for_model(obj_m2m),
         ).first()
         data = json.loads(crud_event.object_json_repr)[0]
         assert [str(d) for d in data["fields"]["test_m2m"]] == []
@@ -135,7 +128,7 @@ class TestAuditModels:
     def test_update_skip_no_changed_fields(self, model):
         obj = model.objects.create()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         assert crud_event_qs.count() == 1
 
@@ -149,7 +142,7 @@ class TestAuditModels:
     def test_update(self, model):
         obj = model.objects.create()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         assert crud_event_qs.count() == 1
 
@@ -164,7 +157,7 @@ class TestAuditModels:
     def test_fake_update_skip_no_changed_fields(self, model):
         obj = model.objects.create()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         obj.save()
         assert crud_event_qs.count() == 1
@@ -172,7 +165,7 @@ class TestAuditModels:
     def test_fake_update(self, model):
         obj = model.objects.create()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         obj.save()
         assert crud_event_qs.count() == 2
@@ -180,14 +173,14 @@ class TestAuditModels:
     def test_delete(self, model):
         obj = model.objects.create()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         assert crud_event_qs.count() == 1
 
         obj_id = obj.pk
         obj.delete()
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj_id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj_id,
         )
         assert crud_event_qs.count() == 2
 
@@ -201,14 +194,12 @@ class TestAuditModels:
 
         crud_event_qs = CRUDEvent.objects.filter(
             object_id=obj.id,
-            content_type=ContentType.objects.get_for_model(obj),
             event_type=CRUDEvent.CREATE,
         )
         assert crud_event_qs.count() == 1
 
         crud_event_qs = CRUDEvent.objects.filter(
             object_id=obj.id,
-            content_type=ContentType.objects.get_for_model(obj),
             event_type=CRUDEvent.DELETE,
         )
         assert crud_event_qs.count() == 1
@@ -262,7 +253,7 @@ class TestMiddleware:
 
         obj = Model.objects.all().first()
         crud_event = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         ).first()
         assert crud_event.user == user
 
@@ -273,7 +264,7 @@ class TestMiddleware:
 
         obj = Model.objects.all().first()
         crud_event = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         ).first()
         assert crud_event.user is None
 
@@ -281,10 +272,9 @@ class TestMiddleware:
         user = django_user_model.objects.create_user(username, email, password)
         set_current_user(user)
         obj = Model.objects.create()
-        assert obj.id == 1
 
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         assert crud_event_qs.count() == 1
 
@@ -293,10 +283,9 @@ class TestMiddleware:
 
         clear_request()
         obj = Model.objects.create()
-        assert obj.id == 2
 
         crud_event_qs = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         )
         assert crud_event_qs.count() == 1
 
@@ -311,102 +300,6 @@ class TestMiddleware:
 
         obj = Model.objects.first()
         crud_event = CRUDEvent.objects.filter(
-            object_id=obj.id, content_type=ContentType.objects.get_for_model(obj)
+            object_id=obj.id,
         ).first()
         assert crud_event.user == user
-
-
-@pytest.mark.asyncio
-@pytest.mark.django_db(transaction=True)
-class TestASGIRequestEvent:
-    async def test_login(self, async_user, async_client, username, password):
-        await sync_to_async(async_client.login)(username=username, password=password)
-        assert await RequestEvent.objects.acount() == 0
-
-        resp = await async_client.get(reverse("test_app:index"))
-        assert resp.status_code == 200
-
-        qs = RequestEvent.objects.filter(user=async_user)
-        assert await qs.aexists()
-
-    async def test_remote_addr_default(self, async_client):
-        assert await RequestEvent.objects.acount() == 0
-
-        resp = await async_client.request(
-            method="GET",
-            path=str(reverse("test_app:index")),
-            server=("127.0.0.1", "80"),
-            scheme="http",
-            headers=[(b"host", b"testserver")],
-            query_string="",
-        )
-        assert resp.status_code == 200
-
-        event = await RequestEvent.objects.aget(url=reverse("test_app:index"))
-        assert event.remote_ip == "127.0.0.1"
-
-    async def test_remote_addr_another(self, async_client):
-        assert await RequestEvent.objects.acount() == 0
-
-        resp = await async_client.request(
-            method="GET",
-            path=str(reverse("test_app:index")),
-            server=("127.0.0.1", "80"),
-            client=("10.0.0.1", 111),
-            scheme="http",
-            headers=[(b"host", b"testserver")],
-            query_string="",
-        )
-        assert resp.status_code == 200
-
-        event = await RequestEvent.objects.aget(url=reverse("test_app:index"))
-        assert event.remote_ip == "10.0.0.1"
-
-    async def test_middleware_is_async_capable(self, async_client, caplog, settings):
-        """Test for async capability of EasyAuditMiddleware.
-
-        If the EasyAuditMiddleware is async capable Django `django.request` logger
-        will not emit debug message 'Asynchronous handler adapted for middleware …'
-
-        See: https://docs.djangoproject.com/en/5.0/topics/async/#async-views
-        """
-        unwanted_log_message = (
-            "Asynchronous handler adapted for middleware "
-            "easyaudit.middleware.easyaudit.EasyAuditMiddleware"
-        )
-        settings.DEBUG = True
-        with caplog.at_level(logging.DEBUG, "django.request"):
-            await async_client.get(reverse("test_app:index"))
-            assert unwanted_log_message not in caplog.text
-
-
-@pytest.mark.django_db
-class TestWSGIRequestEvent:
-    def test_login(self, user, client, username, password):
-        client.login(username=username, password=password)
-        assert RequestEvent.objects.count() == 0
-
-        resp = client.get(reverse("test_app:index"))
-        assert resp.status_code == 200
-
-        assert RequestEvent.objects.get(user=user)
-
-
-@pytest.mark.django_db
-class TestAuditAdmin:
-    @pytest.fixture
-    def tag_name(self):
-        return "summary" if get_version() >= "4.1" else "h3"
-
-    def test_request_event_admin_no_users(self, admin_client, settings, tag_name):
-        response = admin_client.get(reverse("admin:easyaudit_requestevent_changelist"))
-        assert response.status_code == 200
-
-        decoded_content = response.content.decode()
-        for f in settings.DJANGO_EASY_AUDIT_REQUEST_EVENT_LIST_FILTER:
-            assertInHTML(
-                f"<{tag_name}>"
-                f"By {RequestEvent._meta.get_field(f).verbose_name}"
-                f"</{tag_name}>",
-                decoded_content,
-            )

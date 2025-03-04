@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -33,12 +32,6 @@ class CRUDEvent(models.Model):
 
     event_type = models.SmallIntegerField(choices=TYPES, verbose_name=_("Event type"))
     object_id = models.CharField(max_length=255, verbose_name=_("Object ID"))
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE,
-        db_constraint=False,
-        verbose_name=_("Content type"),
-    )
     object_repr = models.TextField(
         default="", blank=True, verbose_name=_("Object representation")
     )
@@ -63,13 +56,13 @@ class CRUDEvent(models.Model):
         help_text=_("String version of the user pk"),
         verbose_name=_("User PK as string"),
     )
-    datetime = models.DateTimeField(auto_now_add=True, verbose_name=_("Date time"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Date time"))
 
     class Meta:
         verbose_name = _("CRUD event")
         verbose_name_plural = _("CRUD events")
-        ordering = ["-datetime"]
-        indexes = [models.Index(fields=["object_id", "content_type"])]
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["object_id"])]
 
     def is_create(self):
         return self.event_type == self.CREATE
@@ -105,36 +98,9 @@ class LoginEvent(models.Model):
     remote_ip = models.CharField(
         max_length=50, default="", db_index=True, verbose_name=_("Remote IP")
     )
-    datetime = models.DateTimeField(auto_now_add=True, verbose_name=_("Date time"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Date time"))
 
     class Meta:
         verbose_name = _("login event")
         verbose_name_plural = _("login events")
-        ordering = ["-datetime"]
-
-
-class RequestEvent(models.Model):
-    url = models.CharField(null=False, db_index=True, max_length=254, verbose_name=_("URL"))
-    method = models.CharField(
-        max_length=20, null=False, db_index=True, verbose_name=_("Method")
-    )
-    query_string = models.TextField(default="", verbose_name=_("Query string"))
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        db_constraint=False,
-        verbose_name=_("User"),
-    )
-    remote_ip = models.CharField(
-        max_length=50, default="", db_index=True, verbose_name=_("Remote IP")
-    )
-    datetime = models.DateTimeField(
-        auto_now_add=True, db_index=True, verbose_name=_("Date time")
-    )
-
-    class Meta:
-        verbose_name = _("request event")
-        verbose_name_plural = _("request events")
-        ordering = ["-datetime"]
+        ordering = ["-created_at"]

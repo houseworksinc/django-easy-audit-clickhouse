@@ -4,12 +4,11 @@ import django.db.utils
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.models import Session
 from django.db.migrations import Migration
 from django.db.migrations.recorder import MigrationRecorder
 
-from easyaudit.models import CRUDEvent, LoginEvent, RequestEvent
+from easyaudit.models import CRUDEvent, LoginEvent
 
 
 def get_model_list(class_list):
@@ -46,11 +45,9 @@ LOGGING_BACKEND = getattr(
 UNREGISTERED_CLASSES = [
     CRUDEvent,
     LoginEvent,
-    RequestEvent,
     Migration,
     Session,
     Permission,
-    ContentType,
     MigrationRecorder.Migration,
 ]
 
@@ -154,9 +151,8 @@ CRUD_EVENT_LIST_FILTER = getattr(
     "DJANGO_EASY_AUDIT_CRUD_EVENT_LIST_FILTER",
     [
         "event_type",
-        "content_type",
         "user",
-        "datetime",
+        "created_at",
     ],
 )
 LOGIN_EVENT_LIST_FILTER = getattr(
@@ -165,7 +161,7 @@ LOGIN_EVENT_LIST_FILTER = getattr(
     [
         "login_type",
         "user",
-        "datetime",
+        "created_at",
     ],
 )
 REQUEST_EVENT_LIST_FILTER = getattr(
@@ -174,7 +170,7 @@ REQUEST_EVENT_LIST_FILTER = getattr(
     [
         "method",
         "user",
-        "datetime",
+        "created_at",
     ],
 )
 
@@ -207,3 +203,9 @@ REQUEST_EVENT_SEARCH_FIELDS = getattr(
 )
 
 READONLY_EVENTS = getattr(settings, "DJANGO_EASY_AUDIT_READONLY_EVENTS", False)
+
+# Clickhouse settings
+CLICKHOUSE_HOST = getattr(settings, "CLICKHOUSE_HOST", "localhost")
+CLICKHOUSE_USER = getattr(settings, "CLICKHOUSE_USER", "user")
+CLICKHOUSE_PASSWORD = getattr(settings, "CLICKHOUSE_PASSWORD", "password")
+CLICKHOUSE_DATABASE = getattr(settings, "CLICKHOUSE_DATABASE", "database")

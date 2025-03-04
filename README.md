@@ -1,4 +1,4 @@
-# django-easy-audit
+# django-easy-audit-clickhouse
 
 [![pypi](https://img.shields.io/pypi/v/django-easy-audit.svg)](https://pypi.org/project/django-easy-audit/)
 ![PyPI - Django Version](https://img.shields.io/pypi/frameworkversions/django/django-easy-audit)
@@ -9,9 +9,17 @@ This app allows you to keep track of every action taken by your users.
 
 ## Quickstart
 
-1. Install Django Easy Audit by running `pip install django-easy-audit`.
+1. Prerequisites:
+   ```python
+   django==4.2
+   clickhouse-connect>=0.8.15
+   celery>=5.4.0
+   djangorestframework>=3.15
+   ```
 
-   _Alternatively, you can download the [latest release](https://github.com/soynatan/django-easy-audit/releases) from GitHub, unzip it, and place the folder 'easyaudit' in the root of your project._
+1. Install Django Easy Audit by running `pip install django-easy-audit-clickhouse`.
+
+   _Alternatively, you can download the [latest release](https://github.com/houseworksinc/django-easy-audit-clickhouse) from GitHub, unzip it, and place the folder 'easyaudit' in the root of your project._
 
 2. Add 'easyaudit' to your `INSTALLED_APPS` like this:
 
@@ -33,7 +41,33 @@ This app allows you to keep track of every action taken by your users.
 
 4. Run `python manage.py migrate easyaudit` to create the app's models.
 
-5. That's it! Now every CRUD event on your whole project will be registered in the audit models, which you will be able to query from the Django admin app. Additionally, this app will also log all authentication events and all URLs requested.
+5. Configure the ClickHouse connection in your settings.py:
+
+   ```python
+   CLICKHOUSE_HOST = 'localhost'
+   CLICKHOUSE_USER = 'user'
+   CLICKHOUSE_PASSWORD = 'password'
+   CLICKHOUSE_DATABASE = 'default'
+   ```
+
+6. Create shared task of `send_logs_to_clickhouse` to sync data from django to clickhouse:
+
+   ```python
+   @shared_task
+   def send_audit_logs_to_clickhouse():
+      from easyaudit.tasks import send_logs_to_clickhouse
+
+      send_logs_to_clickhouse()
+
+   app.conf.beat_schedule = {
+        "send-logs-to-clickhouse": {
+            "task": "path.to.send_logs_to_clickhouse",
+            "schedule": crontab(hour=9, minute=10),  # 12:00 AM PST
+        },
+    }
+   ```
+
+
 
 ## Settings
 
@@ -90,9 +124,8 @@ Below are some of the settings you may want to use. These should be defined in y
   Used to remove filters when the corresponding list of data would be too long.
   Defaults are:
 
-  - ['event_type', 'content_type', 'user', 'datetime', ] for CRUDEventAdmin
-  - ['login_type', 'user', 'datetime', ] for LoginEventAdmin
-  - ['method', 'user', 'datetime', ] for RequestEventAdmin
+  - ['event_type', 'user', 'created_at', ] for CRUDEventAdmin
+  - ['login_type', 'user', 'created_at', ] for LoginEventAdmin
 
 - `DJANGO_EASY_AUDIT_DATABASE_ALIAS`
 
@@ -169,8 +202,7 @@ a registry. This applies to every model of every app in your project.
 When any of these events takes place, Django Easy Audit will log it in the model `CRUDEvent`.
 You can query this information in the Django Admin app.
 
-Besides logging CRUD events, Django Easy Audit will log all authentication events (such as when a user logs in, out, or fails to log in) and all the URLs requested in the project. This information is stored in models `LoginEvent` and `RequestEvent`.
-
+Besides logging CRUD events, Django Easy Audit will log all authentication events (such as when a user logs in, out, or fails to log in) and all the URLs requested in the project. This information is stored in models `LoginEvent`
 ## Why you should use it
 
 There are many Django auditing apps out there, but most them require you to change very important
